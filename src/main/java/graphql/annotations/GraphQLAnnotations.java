@@ -18,6 +18,7 @@ import graphql.relay.Relay;
 import graphql.schema.*;
 import graphql.schema.GraphQLNonNull;
 import lombok.SneakyThrows;
+import org.reflections.Reflections;
 
 import javax.validation.constraints.NotNull;
 import java.lang.annotation.Annotation;
@@ -39,6 +40,47 @@ import static graphql.schema.GraphQLUnionType.newUnionType;
  * elements.
  */
 public class GraphQLAnnotations {
+
+
+
+
+    public static GraphQLObjectType schema(String packagePrefix) throws IllegalAccessException, NoSuchMethodException, InstantiationException {
+        return schema(packagePrefix, null);
+    }
+
+    public static GraphQLObjectType schema(String packagePrefix, DataFetcherFactory dataFetcherFactory) throws IllegalAccessException, NoSuchMethodException, InstantiationException {
+
+        Map<GraphQLObjectType, Class> generatedObjects = new HashMap<>();
+
+        Reflections reflections = new Reflections(packagePrefix);
+
+
+        GraphQLObjectType.Builder rootObjectBuilder = GraphQLObjectType.newObject()
+                .name("rootObject")
+                .description("GraphQL Root Object");
+
+        for(Class<?> c : reflections.getTypesAnnotatedWith(GraphQLTable.class)) {
+            GraphQLObjectType generatedObject = GraphQLAnnotations.object(c);
+
+            GraphQLFieldDefinition.Builder fieldBuilder = GraphQLFieldDefinition.newFieldDefinition()
+                    .name(generatedObject.getName())
+                    .description("get one " + generatedObject.getName())
+                    .type(generatedObject);
+
+            if(dataFetcherFactory != null) {
+                fieldBuilder.dataFetcher(dataFetcherFactory.getDataFetcher(c));
+
+                for(GraphQLArgument argument : dataFetcherFactory.getSupportedArguments(c)) {
+                    fieldBuilder.argument(argument);
+                }
+            }
+
+            rootObjectBuilder.field(fieldBuilder.build());
+        }
+
+        return rootObjectBuilder.build();
+    }
+
 
     /**
      * Extract GraphQLInterfaceType from an interface
