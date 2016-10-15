@@ -12,27 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  */
-
 package graphql.annotations;
 
-import graphql.schema.*;
-import graphql.schema.GraphQLType;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-import java.util.List;
-
-public interface DataFetcherFactory {
-
-	/**
-	 * Get datafetcher for class
-	 *
-	 * @return
-	 */
-	public DataFetcher getDataFetcher(Class c, graphql.schema.GraphQLType type);
-
-	/**
-	 * Get supported datafetchers for class
-	 *
-	 * @return
-	 */
-	public List<GraphQLArgument> getSupportedArguments(Class c, GraphQLType type);
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface GraphQLSchemaRootTypeNone {
 }

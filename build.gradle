@@ -74,6 +74,8 @@ dependencies {
     // Remove some boilerplate
     compile 'org.projectlombok:lombok:1.16.6'
 
+    compile group: 'org.reflections', name: 'reflections', version: '0.9.10'
+
     testCompile 'org.testng:testng:6.9.10'
 }
 

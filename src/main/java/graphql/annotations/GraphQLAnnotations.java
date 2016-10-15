@@ -60,26 +60,88 @@ public class GraphQLAnnotations {
                 .description("GraphQL Root Object");
 
         for(Class<?> c : reflections.getTypesAnnotatedWith(GraphQLTable.class)) {
-            GraphQLObjectType generatedObject = GraphQLAnnotations.object(c);
 
-            GraphQLFieldDefinition.Builder fieldBuilder = GraphQLFieldDefinition.newFieldDefinition()
-                    .name(generatedObject.getName())
-                    .description("get one " + generatedObject.getName())
-                    .type(generatedObject);
-
-            if(dataFetcherFactory != null) {
-                fieldBuilder.dataFetcher(dataFetcherFactory.getDataFetcher(c));
-
-                for(GraphQLArgument argument : dataFetcherFactory.getSupportedArguments(c)) {
-                    fieldBuilder.argument(argument);
-                }
+            // what to generate
+            if(c.getAnnotation(GraphQLSchemaRootTypeNone.class) != null) {
+                continue;
             }
 
-            rootObjectBuilder.field(fieldBuilder.build());
+            GraphQLSchemaRootTypeSingle typeSingle = c.getAnnotation(GraphQLSchemaRootTypeSingle.class);
+            GraphQLSchemaRootTypeList typeList = c.getAnnotation(GraphQLSchemaRootTypeList.class);
+
+            String singleName = null;
+            String listName = null;
+
+            if(typeSingle != null) {
+                singleName = typeSingle.name();
+            }
+
+            if(typeList != null) {
+                listName = typeList.name();
+            }
+
+            // on default, there is everything
+            if(singleName == null && listName == null) {
+                singleName = listName = "";
+            }
+
+            GraphQLObjectType generatedObject = GraphQLAnnotations.object(c);
+            GraphQLDataFetcher dataFetcher = c.getAnnotation(GraphQLDataFetcher.class);
+
+            if(singleName != null) {
+
+                if(singleName.isEmpty())
+                    singleName = generatedObject.getName();
+
+                GraphQLFieldDefinition.Builder fieldBuilder = GraphQLFieldDefinition.newFieldDefinition()
+                        .name(singleName)
+                        .description("Get one object from API" + singleName)
+                        .type(generatedObject);
+
+                if (dataFetcher != null) {
+                    fieldBuilder.dataFetcher(dataFetcher.value().newInstance());
+                } else if (dataFetcherFactory != null) {
+                    fieldBuilder.dataFetcher(dataFetcherFactory.getDataFetcher(c, generatedObject));
+
+                    for (GraphQLArgument argument : dataFetcherFactory.getSupportedArguments(c, generatedObject)) {
+                        fieldBuilder.argument(argument);
+                    }
+                }
+
+                rootObjectBuilder.field(fieldBuilder.build());
+            }
+
+
+            if(listName != null) {
+
+                if(listName.isEmpty())
+                    listName = generatedObject.getName() + "_list";
+
+                GraphQLFieldDefinition.Builder fieldBuilder = GraphQLFieldDefinition.newFieldDefinition()
+                        .name(listName)
+                        .description("Get list of" + listName)
+                        .type(new GraphQLList(generatedObject));
+
+
+                if (dataFetcher != null) {
+                    fieldBuilder.dataFetcher(dataFetcher.value().newInstance());
+                } else if (dataFetcherFactory != null) {
+                    fieldBuilder.dataFetcher(dataFetcherFactory.getDataFetcher(c, new GraphQLList(generatedObject)));
+
+                    for (GraphQLArgument argument : dataFetcherFactory.getSupportedArguments(c, new GraphQLList(generatedObject))) {
+                        fieldBuilder.argument(argument);
+                    }
+                }
+
+                rootObjectBuilder.field(fieldBuilder.build());
+            }
+
         }
 
         return rootObjectBuilder.build();
     }
+
+
 
 
     /**

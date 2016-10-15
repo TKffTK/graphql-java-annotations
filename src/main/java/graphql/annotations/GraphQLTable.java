@@ -19,8 +19,18 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+
+/**
+ * Tell that class is part of GraphQL schema.
+ *
+ * You can decide what stuff will be include root of graphql schema with these annotations:
+ *  * {@link GraphQLSchemaRootTypeList} List of objects
+ *  * {@link GraphQLSchemaRootTypeSingle} Single object
+ *  * {@link GraphQLSchemaRootTypeNone} Do not include this to schema root, just let other object reference this.
+ *
+ *  On default, all possibly stuff is created to graphql schema root from this object.
+ */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface GraphQLTable {
-
 }

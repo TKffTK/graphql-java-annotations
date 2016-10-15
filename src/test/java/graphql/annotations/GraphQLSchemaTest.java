@@ -52,6 +52,7 @@ public class GraphQLSchemaTest {
 		}
 	}
 
+
 	@GraphQLTable
 	@GraphQLName("namedTest")
 	public class NamedClass {
@@ -71,6 +72,31 @@ public class GraphQLSchemaTest {
 		}
 	}
 
+
+	@GraphQLTable
+	@GraphQLSchemaRootTypeList
+	public class OnlyList {
+		@GraphQLField
+		public OnlyReference onlyReferenceTest;
+	}
+
+	@GraphQLTable
+	@GraphQLSchemaRootTypeSingle(name = "singleNameTest")
+	public class OnlyNamedSingle {
+	}
+
+	@GraphQLTable
+	@GraphQLSchemaRootTypeNone
+	public class OnlyReference {
+	}
+
+	@GraphQLTable
+	@GraphQLSchemaRootTypeSingle
+	@GraphQLSchemaRootTypeList(name = "ListDifferentNames")
+	public class DifferentNames {
+	}
+
+
 	class TestDataFetcher implements DataFetcher {
 
 		public TestDataFetcher(Object object) {
@@ -81,6 +107,17 @@ public class GraphQLSchemaTest {
 
 		@Override
 		public Object get(DataFetchingEnvironment environment) {
+
+			if(environment.getFieldType().getClass().equals(GraphQLList.class)) {
+				//return getList(dataFetchingEnvironment);
+
+				List retList = new ArrayList();
+
+				retList.add(object);
+
+				return retList;
+			}
+
 			return object;
 		}
 	}
@@ -90,22 +127,21 @@ public class GraphQLSchemaTest {
 		Map<Class, Object> objects;
 		Map<Class, List<GraphQLArgument>> arguments;
 
-		public TestDataFetcherFactory(Map<Class,Object> objects, Map<Class,List<GraphQLArgument>> arguments) {
+		public TestDataFetcherFactory(Map<Class, Object> objects, Map<Class, List<GraphQLArgument>> arguments) {
 			this.objects = objects;
 			this.arguments = arguments;
 		}
 
 		@Override
-		public DataFetcher getDataFetcher(Class c) {
+		public DataFetcher getDataFetcher(Class c, graphql.schema.GraphQLType type) {
 			return new TestDataFetcher(objects.get(c));
 		}
 
 		@Override
-		public List<GraphQLArgument> getSupportedArguments(Class c) {
-			return  this.arguments.get(c);
+		public List<GraphQLArgument> getSupportedArguments(Class c, graphql.schema.GraphQLType type) {
+			return this.arguments.get(c);
 		}
 	}
-
 
 
 	@SneakyThrows
@@ -128,7 +164,36 @@ public class GraphQLSchemaTest {
 				.name("arg2")
 				.type(Scalars.GraphQLInt)
 				.build()));
+		args.put(OnlyList.class, new ArrayList<>());
+		args.put(OnlyNamedSingle.class, new ArrayList<>());
+		args.put(OnlyReference.class, new ArrayList<>());
+		args.put(DifferentNames.class, new ArrayList<>());
 		return new TestDataFetcherFactory(objects, args);
+	}
+
+
+	@SneakyThrows
+	@Test
+	public void typeAnnotations() {
+		GraphQLObjectType testRoot = GraphQLAnnotations.schema("graphql.annotations.GraphQLSchemaTest", createDataFetcherFactory());
+		assertNotNull(testRoot);
+
+
+		assertNotNull(testRoot.getFieldDefinition("namedTest"));
+		assertNotNull(testRoot.getFieldDefinition("Class1"));
+
+		assertNotNull(testRoot.getFieldDefinition("OnlyList_list"));
+		assertNull(testRoot.getFieldDefinition("OnlyList"));
+
+		assertNotNull(testRoot.getFieldDefinition("singleNameTest"));
+		assertNull(testRoot.getFieldDefinition("OnlyNamedSingle"));
+		assertNull(testRoot.getFieldDefinition("OnlyNamedSingle_list"));
+
+		assertNull(testRoot.getFieldDefinition("OnlyReference"));
+		assertNull(testRoot.getFieldDefinition("OnlyReference_list"));
+
+		assertNotNull(testRoot.getFieldDefinition("DifferentNames"));
+		assertNotNull(testRoot.getFieldDefinition("ListDifferentNames"));
 	}
 
 
@@ -141,7 +206,7 @@ public class GraphQLSchemaTest {
 		assertNotNull(testRoot);
 
 		List<GraphQLFieldDefinition> fields = testRoot.getFieldDefinitions();
-		assertEquals(fields.size(), 2);
+		assertEquals(fields.size(), 8);
 
 
 		assertNotNull(testRoot.getFieldDefinition("namedTest"));
@@ -159,6 +224,20 @@ public class GraphQLSchemaTest {
 		ExecutionResult result = graphql.execute("{Class1 { field } }");
 		String actual = result.getData().toString();
 		assertEquals(actual, "{Class1={field=field1}}");
+
+	}
+
+	@Test
+	@SneakyThrows
+	public void listData() {
+
+		GraphQLObjectType testRoot = GraphQLAnnotations.schema("graphql.annotations.GraphQLSchemaTest", createDataFetcherFactory());
+
+		GraphQL graphql = new GraphQL(newSchema().query(testRoot).build());
+
+		ExecutionResult result = graphql.execute("{Class1_list { field } }");
+		String actual = result.getData().toString();
+		assertEquals(actual, "{Class1_list=[{field=field1}]}");
 
 	}
 
