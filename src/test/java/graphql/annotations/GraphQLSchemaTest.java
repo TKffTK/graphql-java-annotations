@@ -41,6 +41,9 @@ public class GraphQLSchemaTest {
 		private NamedClass namedClass;
 
 		@GraphQLField
+		public OnlyReference onlyReference;
+
+		@GraphQLField
 		private String field = "field1";
 
 		public String getField() {
@@ -76,8 +79,6 @@ public class GraphQLSchemaTest {
 	@GraphQLTable
 	@GraphQLSchemaRootTypeList
 	public class OnlyList {
-		@GraphQLField
-		public OnlyReference onlyReferenceTest;
 	}
 
 	@GraphQLTable
@@ -88,6 +89,8 @@ public class GraphQLSchemaTest {
 	@GraphQLTable
 	@GraphQLSchemaRootTypeNone
 	public class OnlyReference {
+		@GraphQLField
+		public String f = "field";
 	}
 
 	@GraphQLTable
@@ -150,6 +153,8 @@ public class GraphQLSchemaTest {
 		NamedClass namedClass = new NamedClass(class1);
 		class1.setNamedClass(namedClass);
 
+		class1.onlyReference = new OnlyReference();
+
 
 		Map<Class, Object> objects = new HashMap<>();
 		objects.put(Class1.class, class1);
@@ -196,6 +201,22 @@ public class GraphQLSchemaTest {
 		assertNotNull(testRoot.getFieldDefinition("ListDifferentNames"));
 	}
 
+	@Test
+	@SneakyThrows
+	public void onlyReference() {
+		GraphQLObjectType testRoot = GraphQLAnnotations.schema("graphql.annotations.GraphQLSchemaTest", createDataFetcherFactory());
+
+		assertNull(testRoot.getFieldDefinition("OnlyReference"));
+		assertNull(testRoot.getFieldDefinition("OnlyReference_list"));
+
+		GraphQL graphql = new GraphQL(newSchema().query(testRoot).build());
+
+		ExecutionResult result;
+		String actual;
+		result = graphql.execute("{Class1 {onlyReference { f } } }");
+		actual = result.getData().toString();
+		assertEquals(actual, "{Class1={onlyReference={f=field}}}");
+	}
 
 	@Test
 	@SneakyThrows

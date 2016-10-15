@@ -61,6 +61,8 @@ public class GraphQLAnnotations {
 
         for(Class<?> c : reflections.getTypesAnnotatedWith(GraphQLTable.class)) {
 
+            GraphQLObjectType generatedObject = GraphQLAnnotations.object(c);
+
             // what to generate
             if(c.getAnnotation(GraphQLSchemaRootTypeNone.class) != null) {
                 continue;
@@ -85,7 +87,6 @@ public class GraphQLAnnotations {
                 singleName = listName = "";
             }
 
-            GraphQLObjectType generatedObject = GraphQLAnnotations.object(c);
             GraphQLDataFetcher dataFetcher = c.getAnnotation(GraphQLDataFetcher.class);
 
             if(singleName != null) {
