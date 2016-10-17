@@ -18,11 +18,13 @@ import graphql.relay.Relay;
 import graphql.schema.*;
 import graphql.schema.GraphQLNonNull;
 import lombok.SneakyThrows;
+import org.omg.CORBA.DynAnyPackage.Invalid;
 import org.reflections.Reflections;
 
 import javax.validation.constraints.NotNull;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
+import java.security.InvalidParameterException;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -42,15 +44,33 @@ import static graphql.schema.GraphQLUnionType.newUnionType;
 public class GraphQLAnnotations {
 
 
-
-
+    /**
+     * See {@link #schema(String, DataFetcherFactory)}
+     *
+     */
     public static GraphQLObjectType schema(String packagePrefix) throws IllegalAccessException, NoSuchMethodException, InstantiationException {
         return schema(packagePrefix, null);
     }
 
+
+    /**
+     * Generate full GraphQL Schema and return it's root object.
+     *
+     * Schema can contain and reference any object annotated with {@link GraphQLTable}.
+     *
+     * Objects annotated with {@link GraphQLSchemaRootType} will be taken part of schema root.
+     *
+     * Datafetcher can come either from dataFetcherFactory, or you can provide them using {@link GraphQLDataFetcher} annotation.
+     * Annotation always overrides datafetcher from factory.
+     * Factory provides object, annotation gives Class where we create instance and use that for datafetcher.
+     *
+     *
+     * @param packagePrefix From under which package objects are read from.
+     * @param dataFetcherFactory factory for datafetchers. If this is null, Annotation must be used.
+     * @return Root object for schema.
+     */
     public static GraphQLObjectType schema(String packagePrefix, DataFetcherFactory dataFetcherFactory) throws IllegalAccessException, NoSuchMethodException, InstantiationException {
 
-        Map<GraphQLObjectType, Class> generatedObjects = new HashMap<>();
 
         Reflections reflections = new Reflections(packagePrefix);
 
@@ -63,75 +83,50 @@ public class GraphQLAnnotations {
 
             GraphQLObjectType generatedObject = GraphQLAnnotations.object(c);
 
-            // what to generate
-            if(c.getAnnotation(GraphQLSchemaRootTypeNone.class) != null) {
+            GraphQLSchemaRootType[] rootTypes = c.getAnnotationsByType(GraphQLSchemaRootType.class);
+            if(rootTypes.length == 0) {
                 continue;
             }
 
-            GraphQLSchemaRootTypeSingle typeSingle = c.getAnnotation(GraphQLSchemaRootTypeSingle.class);
-            GraphQLSchemaRootTypeList typeList = c.getAnnotation(GraphQLSchemaRootTypeList.class);
+            GraphQLDataFetcher fetcheAnnotation = c.getAnnotation(GraphQLDataFetcher.class);
 
-            String singleName = null;
-            String listName = null;
+            DataFetcher dataFetcher = (fetcheAnnotation != null) ? fetcheAnnotation.value().newInstance() : null;
 
-            if(typeSingle != null) {
-                singleName = typeSingle.name();
-            }
+            for(GraphQLSchemaRootType type : rootTypes) {
 
-            if(typeList != null) {
-                listName = typeList.name();
-            }
-
-            // on default, there is everything
-            if(singleName == null && listName == null) {
-                singleName = listName = "";
-            }
-
-            GraphQLDataFetcher dataFetcher = c.getAnnotation(GraphQLDataFetcher.class);
-
-            if(singleName != null) {
-
-                if(singleName.isEmpty())
-                    singleName = generatedObject.getName();
-
-                GraphQLFieldDefinition.Builder fieldBuilder = GraphQLFieldDefinition.newFieldDefinition()
-                        .name(singleName)
-                        .description("Get one object from API" + singleName)
-                        .type(generatedObject);
-
-                if (dataFetcher != null) {
-                    fieldBuilder.dataFetcher(dataFetcher.value().newInstance());
-                } else if (dataFetcherFactory != null) {
-                    fieldBuilder.dataFetcher(dataFetcherFactory.getDataFetcher(c, generatedObject));
-
-                    for (GraphQLArgument argument : dataFetcherFactory.getSupportedArguments(c, generatedObject)) {
-                        fieldBuilder.argument(argument);
-                    }
+                if(type.name().trim().isEmpty()) {
+                    throw new InvalidParameterException("Schema root name must not be empty");
                 }
 
-                rootObjectBuilder.field(fieldBuilder.build());
-            }
-
-
-            if(listName != null) {
-
-                if(listName.isEmpty())
-                    listName = generatedObject.getName() + "_list";
 
                 GraphQLFieldDefinition.Builder fieldBuilder = GraphQLFieldDefinition.newFieldDefinition()
-                        .name(listName)
-                        .description("Get list of" + listName)
-                        .type(new GraphQLList(generatedObject));
+                        .name(type.name())
+                        .description(type.description());
+
+
+                GraphQLOutputType actualType;
+
+                switch (type.returnType()) {
+                    case GraphQLSchemaRootType.SINGLE:
+                        actualType = generatedObject;
+                        break;
+                    case GraphQLSchemaRootType.LIST:
+                        actualType = new GraphQLList(generatedObject);
+                        break;
+                    default:
+                        throw new InvalidParameterException("Returntype was out of range!");
+
+                }
+
+                fieldBuilder.type(actualType);
 
 
                 if (dataFetcher != null) {
-                    fieldBuilder.dataFetcher(dataFetcher.value().newInstance());
+                    fieldBuilder.dataFetcher(dataFetcher);
                 } else if (dataFetcherFactory != null) {
-                    fieldBuilder.dataFetcher(dataFetcherFactory.getDataFetcher(c, new GraphQLList(generatedObject)));
+                    fieldBuilder.dataFetcher(dataFetcherFactory.getDataFetcher(c, actualType));
 
-                    for (GraphQLArgument argument : dataFetcherFactory.getSupportedArguments(c, new GraphQLList(generatedObject))) {
-                        fieldBuilder.argument(argument);
-                    }
+                    dataFetcherFactory.getSupportedArguments(c, generatedObject).forEach(fieldBuilder::argument);
                 }
 
                 rootObjectBuilder.field(fieldBuilder.build());

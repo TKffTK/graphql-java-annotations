@@ -23,16 +23,21 @@ import java.util.List;
 public interface DataFetcherFactory {
 
 	/**
-	 * Get datafetcher for class
+	 * Get datafetcher for class and returntype
 	 *
-	 * @return
+	 * @param c Class
+	 * @param returnType Desired returntype
+	 *
+	 * @return Instance of datafetcher
 	 */
-	public DataFetcher getDataFetcher(Class c, graphql.schema.GraphQLType type);
+	public DataFetcher getDataFetcher(Class c, graphql.schema.GraphQLType returnType);
 
 	/**
-	 * Get supported datafetchers for class
+	 * Get supported arguments for datafetcher what {@link #getDataFetcher(Class, GraphQLType)} gives.
 	 *
-	 * @return
+	 * @param c Class
+	 * @param returnType Desired returntype
+	 * @return List of arguments
 	 */
-	public List<GraphQLArgument> getSupportedArguments(Class c, GraphQLType type);
+	public List<GraphQLArgument> getSupportedArguments(Class c, GraphQLType returnType);
 }

@@ -21,6 +21,6 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface GraphQLSchemaRootTypeSingle {
-	String name() default "";
+public @interface GraphQLSchemaRootTypes {
+    GraphQLSchemaRootType[] value();
 }

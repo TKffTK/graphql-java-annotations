@@ -14,13 +14,26 @@
  */
 package graphql.annotations;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
+
+/**
+ * GraphQL Schema root object.
+ *
+ * When generating graphQL schema with {@link GraphQLAnnotations#schema(String, DataFetcherFactory)},
+ * objects with this annotation is generated to be part of the root object.
+ *
+ *
+ */
+@Repeatable(GraphQLSchemaRootTypes.class)
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface GraphQLSchemaRootTypeList {
-	String name() default "";
+public @interface GraphQLSchemaRootType {
+    public static int LIST = 1;
+    public static int SINGLE = 2;
+
+    String name();
+    String description() default "";
+    int returnType();
+
 }
